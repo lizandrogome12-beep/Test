@@ -60,19 +60,18 @@
 
 <div class="box">
     <h1>Senha de Verificação</h1>
-    <p>Copie a senha abaixo e cole-a na página de verificação do seu servidor para liberar o download.</p>
+    <p id="instrucoes">Copie a senha abaixo e cole-a na página de verificação do seu servidor para liberar o download.</p>
 
     <div class="token-display">
         <span style="font-size: 12px; color: #a1a1aa; display: block; margin-bottom: 5px;">Senha gerada:</span>
-        <span id="senha-gerada">Gerando...</span>
+        <span id="senha-gerada">A validar...</span>
     </div>
 
-    <button class="btn" onclick="copiarSenha()">Copiar Senha</button>
+    <button id="btn-copiar" class="btn" onclick="copiarSenha()" style="display:none;">Copiar Senha</button>
     <div id="status-msg" class="status"></div>
 </div>
 
 <script>
-    // Função para gerar uma senha aleatória idêntica ao padrão do servidor
     function gerarSenhaAleatoria() {
         const chars = "0123456789ABCDEF";
         let seq = "";
@@ -82,34 +81,54 @@
         return "HENTAI-" + seq;
     }
 
-    // Lê o parâmetro 'pack' da URL (ex: seutipo.github.io/?pack=NomeDoPack)
+    // Captura os parâmetros 'pack' e 'token' fornecidos pelo servidor
     const urlParams = new URLSearchParams(window.location.search);
     const packNome = urlParams.get("pack") || "padrao";
+    const token = urlParams.get("token") || "";
 
-    // Gera a senha localmente
     const senhaFinal = gerarSenhaAleatoria();
-    document.getElementById("senha-gerada").innerText = senhaFinal;
 
-    // URL do seu servidor Python atualizada com o Cloudflare Tunnel
-    const servidorUrl = "https://encryption-castle-glucose-shot.trycloudflare.com/api/gerar-senha";
+    // URL do seu túnel Cloudflare ativo
+    const servidorUrl = "https://resistance-fares-resources-modules.trycloudflare.com/api/gerar-senha";
 
     function enviarParaServidor() {
-        if (!servidorUrl.includes("SEU_TUNEL_AQUI")) {
-            fetch(servidorUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                body: `pack=${encodeURIComponent(packNome)}&senha=${encodeURIComponent(senhaFinal)}`
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.status === "sucesso") {
-                    document.getElementById("status-msg").innerText = "Senha sincronizada com sucesso!";
-                }
-            })
-            .catch(err => console.log("Aviso ao sincronizar:", err));
+        if (!token) {
+            document.getElementById("senha-gerada").innerText = "Acesso Negado";
+            document.getElementById("instrucoes").innerText = "Você precisa aceder a esta página através do encurtador oficial!";
+            document.getElementById("status-msg").style.color = "#ef4444";
+            document.getElementById("status-msg").innerText = "Token em falta ou inválido.";
+            return;
         }
+
+        fetch(servidorUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: `pack=${encodeURIComponent(packNome)}&senha=${encodeURIComponent(senhaFinal)}&token=${encodeURIComponent(token)}`
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === "sucesso") {
+                document.getElementById("senha-gerada").innerText = senhaFinal;
+                document.getElementById("btn-copiar").style.display = "block";
+                document.getElementById("status-msg").style.color = "#10b981";
+                document.getElementById("status-msg").innerText = "Senha sincronizada com sucesso!";
+                
+                // Limpa o token da barra de endereços para impedir que o utilizador copie o link seguro
+                window.history.replaceState({}, document.title, window.location.pathname + "?pack=" + encodeURIComponent(packNome));
+            } else {
+                document.getElementById("senha-gerada").innerText = "Erro";
+                document.getElementById("instrucoes").innerText = data.mensagem || "O token já foi utilizado ou expirou.";
+                document.getElementById("status-msg").style.color = "#ef4444";
+                document.getElementById("status-msg").innerText = "Acesso bloqueado.";
+            }
+        })
+        .catch(err => {
+            console.log("Erro de conexão:", err);
+            document.getElementById("status-msg").style.color = "#ef4444";
+            document.getElementById("status-msg").innerText = "Erro ao comunicar com o servidor Python.";
+        });
     }
 
     enviarParaServidor();
@@ -125,4 +144,3 @@
 
 </body>
 </html>
-
